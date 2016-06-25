@@ -479,6 +479,10 @@ int main(int argc, char *argv[])
 		  seq_init, payload_len, master_key_len*8, auth_bits);
 	re_printf("build:         %H\n", sys_build_get, 0);
 	re_printf("compiler:      %s\n", __VERSION__);
+	re_printf("libre:         %s\n", sys_libre_version_get());
+	re_printf("os:            %s\n", sys_os_get());
+	re_printf("arch:          %s\n", sys_arch_get());
+
 #ifdef USE_OPENSSL
 	re_printf("openssl aesni: %s\n",
 		  (OPENSSL_ia32cap & (1ULL<<57))
