@@ -485,12 +485,6 @@ int main(int argc, char *argv[])
 
 #ifdef USE_OPENSSL
 
-#if OPENSSL_VERSION_NUMBER < 0x10100000L
-	re_printf("openssl aesni: %s\n",
-		  (OPENSSL_ia32cap & (1ULL<<57))
-		  ? "supported" : "not supported");
-#endif
-
 	re_printf("openssl info:  %s\n%s\n",
 		  SSLeay_version(SSLEAY_VERSION),
 		  SSLeay_version(SSLEAY_CFLAGS));
