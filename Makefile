@@ -8,9 +8,6 @@ PROJECT	  := srtperf
 VERSION   := 0.5.0
 
 
-HAVE_LIBSRTP	:= 1
-
-
 ifeq ($(LIBRE_MK),)
 LIBRE_MK  := $(shell [ -f /usr/share/re/re.mk ] && \
 	echo "/usr/share/re/re.mk")
@@ -22,6 +19,17 @@ endif
 
 include $(LIBRE_MK)
 
+
+HAVE_LIBSRTP := $(shell [ -f $(SYSROOT)/include/srtp/srtp.h ] || \
+	[ -f $(SYSROOT)/local/include/srtp/srtp.h ] || \
+	[ -f $(SYSROOT_ALT)/include/srtp/srtp.h ] && echo "yes")
+
+
+HAVE_LIBSRTP2 := $(shell [ -f $(SYSROOT)/include/srtp2/srtp.h ] || \
+	[ -f $(SYSROOT)/local/include/srtp2/srtp.h ] || \
+	[ -f $(SYSROOT_ALT)/include/srtp2/srtp.h ] && echo "yes")
+
+
 INSTALL := install
 ifeq ($(DESTDIR),)
 PREFIX  := /usr/local
@@ -31,10 +39,23 @@ endif
 BINDIR	:= $(PREFIX)/bin
 CFLAGS	+= -g -Wall -I$(LIBRE_INC)
 LIBS	+= -L/usr/local/lib -lm
+
+#
+# libsrtp2 takes precedence over libsrtp
+#
+ifneq ($(HAVE_LIBSRTP2),)
+CFLAGS	+= -DHAVE_LIBSRTP -DLIBSRTP_VERSION=2
+LIBS	+= -lsrtp2
+else
+
 ifneq ($(HAVE_LIBSRTP),)
-CFLAGS	+= -DHAVE_LIBSRTP
+CFLAGS	+= -DHAVE_LIBSRTP -DLIBSRTP_VERSION=1
 LIBS	+= -lsrtp
 endif
+
+endif
+
+
 BIN	:= $(PROJECT)$(BIN_SUFFIX)
 APP_MK	:= src/srcs.mk
 
@@ -69,3 +90,8 @@ clean:
 install: $(BIN)
 	@mkdir -p $(DESTDIR)$(BINDIR)
 	$(INSTALL) -m 0755 $(BIN) $(DESTDIR)$(BINDIR)
+
+
+dump:
+	@echo "HAVE_LIBSRTP:     $(HAVE_LIBSRTP)"
+	@echo "HAVE_LIBSRTP2:    $(HAVE_LIBSRTP2)"

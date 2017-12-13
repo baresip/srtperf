@@ -4,11 +4,23 @@
  * Copyright (C) 2010 Creytiv.com
  */
 
+
 #ifdef HAVE_LIBSRTP
+
+#if LIBSRTP_VERSION == 1
+
 #if defined (__GNUC__) && !defined (asm)
 #define asm __asm__  /* workaround */
 #endif
 #include <srtp/srtp.h>
+
+#elif LIBSRTP_VERSION == 2
+
+#include <srtp2/srtp.h>
+#include <srtp2/crypto_types.h>
+
+#endif
+
 #endif
 
 #include <openssl/crypto.h>
@@ -23,6 +35,16 @@
 #define DEBUG_MODULE "srtperf"
 #define DEBUG_LEVEL 6
 #include <re_dbg.h>
+
+
+/* backwards compatible wrappers */
+#if LIBSRTP_VERSION == 1
+#define SRTP_AES_ICM_128    AES_128_ICM
+#define SRTP_HMAC_SHA1      HMAC_SHA1
+#define srtp_err_status_ok  err_status_ok
+typedef err_status_t        srtp_err_status_t;
+typedef crypto_policy_t     srtp_crypto_policy_t;
+#endif
 
 
 #define SSRC 0x01020304
@@ -122,16 +144,16 @@ static int perftest_libsrtp_encode(struct packets *mbv, unsigned auth_bits)
 {
 	srtp_t srtp = 0;
 	srtp_policy_t policy_tx;
-	crypto_policy_t policy;
+	srtp_crypto_policy_t policy;
 	unsigned i;
-	err_status_t e;
+	srtp_err_status_t e;
 	const int exp_len = (int)(mbv->srtp_packet_len);
 	int len, err = 0;
 
 	memset(&policy, 0, sizeof(policy));
-	policy.cipher_type     = AES_128_ICM;
+	policy.cipher_type     = SRTP_AES_ICM_128;
 	policy.cipher_key_len  = (int)master_key_len + SALT_LEN;
-	policy.auth_type       = HMAC_SHA1;
+	policy.auth_type       = SRTP_HMAC_SHA1;
 	policy.auth_key_len    = 20;
 	policy.auth_tag_len    = auth_bits/8;
 	policy.sec_serv        = sec_serv_conf | sec_serv_auth;
@@ -144,7 +166,7 @@ static int perftest_libsrtp_encode(struct packets *mbv, unsigned auth_bits)
 	policy_tx.next = NULL;
 
 	e = srtp_create(&srtp, &policy_tx);
-	if (e != err_status_ok) {
+	if (e != srtp_err_status_ok) {
 		DEBUG_WARNING("srtp_create failed (e=%d)\n", e);
 		err = EPROTO;
 		goto out;
@@ -160,7 +182,7 @@ static int perftest_libsrtp_encode(struct packets *mbv, unsigned auth_bits)
 		len = (int)mbuf_get_left(mb);
 
 		e = srtp_protect(srtp, mbuf_buf(mb), &len);
-		if (err_status_ok != e) {
+		if (srtp_err_status_ok != e) {
 			DEBUG_WARNING("libsrtp: srtp_protect: e = %d\n", e);
 			err = EPROTO;
 			break;
@@ -188,16 +210,16 @@ static int perftest_libsrtp_decode(struct packets *mbv, unsigned auth_bits)
 {
 	srtp_t srtp = 0;
 	srtp_policy_t policy_rx;
-	crypto_policy_t policy;
+	srtp_crypto_policy_t policy;
 	unsigned i;
-	err_status_t e;
+	srtp_err_status_t e;
 	const int exp_len_rtp = (int)mbv->rtp_packet_len;
 	int len, err = 0;
 
 	memset(&policy, 0, sizeof(policy));
-	policy.cipher_type     = AES_128_ICM;
+	policy.cipher_type     = SRTP_AES_ICM_128;
 	policy.cipher_key_len  = (int)master_key_len + SALT_LEN;
-	policy.auth_type       = HMAC_SHA1;
+	policy.auth_type       = SRTP_HMAC_SHA1;
 	policy.auth_key_len    = 20;
 	policy.auth_tag_len    = auth_bits/8;
 	policy.sec_serv        = sec_serv_conf;
@@ -211,7 +233,7 @@ static int perftest_libsrtp_decode(struct packets *mbv, unsigned auth_bits)
 	policy_rx.next = NULL;
 
 	e = srtp_create(&srtp, &policy_rx);
-	if (e != err_status_ok) {
+	if (e != srtp_err_status_ok) {
 		DEBUG_WARNING("srtp_create failed (e=%d)\n", e);
 		err = EPROTO;
 		goto out;
@@ -226,7 +248,7 @@ static int perftest_libsrtp_decode(struct packets *mbv, unsigned auth_bits)
 		len = (int)mbuf_get_left(mb);
 
 		e = srtp_unprotect(srtp, mbuf_buf(mb), &len);
-		if (err_status_ok != e) {
+		if (srtp_err_status_ok != e) {
 			DEBUG_WARNING("libsrtp: srtp_unprotect: e = %d\n", e);
 			err = EPROTO;
 			break;
@@ -491,7 +513,8 @@ int main(int argc, char *argv[])
 #endif
 
 #ifdef HAVE_LIBSRTP
-	re_printf("HAVE_LIBSRTP:  yes\n");
+	re_printf("HAVE_LIBSRTP:  yes (%d)\n", LIBSRTP_VERSION);
+	re_printf("libsrtp:       %s\n", srtp_get_version_string());
 #else
 	re_printf("HAVE_LIBSRTP:  no\n");
 #endif
@@ -500,12 +523,12 @@ int main(int argc, char *argv[])
 
 #ifdef HAVE_LIBSRTP
 	{
-		err_status_t e;
+		srtp_err_status_t e;
 		if (verbose)
 			re_printf("initializing libsrtp..\n");
 
 		e = srtp_init();
-		if (err_status_ok != e) {
+		if (srtp_err_status_ok != e) {
 			DEBUG_WARNING("srtp_init() failed (e=%d)\n", e);
 			return ENOSYS;
 		}
