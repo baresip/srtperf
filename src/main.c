@@ -514,7 +514,9 @@ int main(int argc, char *argv[])
 
 #ifdef HAVE_LIBSRTP
 	re_printf("HAVE_LIBSRTP:  yes (%d)\n", LIBSRTP_VERSION);
+#if LIBSRTP_VERSION == 2
 	re_printf("libsrtp:       %s\n", srtp_get_version_string());
+#endif
 #else
 	re_printf("HAVE_LIBSRTP:  no\n");
 #endif
