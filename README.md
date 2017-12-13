@@ -13,7 +13,7 @@ this program compares the performance of two SRTP stacks:
 you need to have libsrtp-dev and libre-dev packages installed
 before building this program.
 
-libre version 0.4.9 or later is needed
+libre version 0.5.0 or later is needed
 
 
 Reference:
