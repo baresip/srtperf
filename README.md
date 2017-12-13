@@ -4,6 +4,9 @@ srtperf
 SRTP Performance test
 
 
+[![Build Status](https://travis-ci.org/alfredh/srtperf.svg?branch=master)](https://travis-ci.org/alfredh/srtperf)
+
+
 this program compares the performance of two SRTP stacks:
 
 1. libsrtp [1]
