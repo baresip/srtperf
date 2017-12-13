@@ -175,7 +175,7 @@ static int perftest_libsrtp_encode(struct packets *mbv, unsigned auth_bits)
 	}
 
  out:
-#if 0
+#if 1
 	if (srtp)
 		srtp_dealloc(srtp);
 #endif
@@ -241,7 +241,7 @@ static int perftest_libsrtp_decode(struct packets *mbv, unsigned auth_bits)
 	}
 
  out:
-#if 0
+#if 1
 	if (srtp)
 		srtp_dealloc(srtp);
 #endif
