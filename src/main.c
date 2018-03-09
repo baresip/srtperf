@@ -49,11 +49,11 @@ typedef crypto_policy_t     srtp_crypto_policy_t;
 
 #define SSRC 0x01020304
 #define MAX_KEY_LEN 32
-#define SALT_LEN 14
+#define MAX_SALT_LEN 14
 
 
 /* 128 - 256 bits key */
-static const uint8_t master_key[MAX_KEY_LEN + SALT_LEN] = {
+static const uint8_t master_key[MAX_KEY_LEN + MAX_SALT_LEN] = {
 	0x22, 0x22, 0x22, 0x22, 0x22, 0x22, 0x22, 0x22,
 	0x22, 0x22, 0x22, 0x22, 0x22, 0x22, 0x22, 0x22,
 	0x22, 0x22, 0x22, 0x22, 0x22, 0x22, 0x22, 0x22,
@@ -78,13 +78,27 @@ struct packets {
 };
 
 
+static size_t get_taglen(enum srtp_suite suite)
+{
+	switch (suite) {
+
+	case SRTP_AES_CM_128_HMAC_SHA1_32: return 4;
+	case SRTP_AES_CM_128_HMAC_SHA1_80: return 10;
+	case SRTP_AES_256_CM_HMAC_SHA1_32: return 4;
+	case SRTP_AES_256_CM_HMAC_SHA1_80: return 10;
+	default: return 0;
+	}
+}
+
+
 static int packets_init(struct packets *mbv, unsigned num,
 			const uint8_t *payload, unsigned payload_len,
-			unsigned auth_bits)
+			enum srtp_suite suite)
 {
 	struct rtp_header hdr;
 	unsigned i;
 	uint16_t seq = seq_init;
+	size_t tag_len = get_taglen(suite);
 	int err = 0;
 
 	memset(&hdr, 0, sizeof(hdr));
@@ -104,7 +118,7 @@ static int packets_init(struct packets *mbv, unsigned num,
 	mbv->rtp_hdr_len = RTP_HEADER_SIZE + hdr.cc*4;
 	mbv->payload_len = payload_len;
 	mbv->rtp_packet_len = mbv->rtp_hdr_len + payload_len;
-	mbv->srtp_packet_len = mbv->rtp_hdr_len + payload_len + auth_bits/8;
+	mbv->srtp_packet_len = mbv->rtp_hdr_len + payload_len + tag_len;
 
 	for (i=0; i<num; i++) {
 
@@ -139,8 +153,63 @@ static void mbv_reset(struct packets *mbv)
 }
 
 
+static size_t get_saltlen(enum srtp_suite suite)
+{
+	switch (suite) {
+
+	case SRTP_AES_CM_128_HMAC_SHA1_32: return 14;
+	case SRTP_AES_CM_128_HMAC_SHA1_80: return 14;
+	case SRTP_AES_256_CM_HMAC_SHA1_32: return 14;
+	case SRTP_AES_256_CM_HMAC_SHA1_80: return 14;
+	default: return 0;
+	}
+}
+
+
+static bool suite_is_gcm(enum srtp_suite suite)
+{
+	switch (suite) {
+
+	case SRTP_AES_CM_128_HMAC_SHA1_32: return false;
+	case SRTP_AES_CM_128_HMAC_SHA1_80: return false;
+	case SRTP_AES_256_CM_HMAC_SHA1_32: return false;
+	case SRTP_AES_256_CM_HMAC_SHA1_80: return false;
+	default: return false;
+	}
+}
+
+
 #ifdef HAVE_LIBSRTP
-static int perftest_libsrtp_encode(struct packets *mbv, unsigned auth_bits)
+
+
+static uint32_t get_libsrtp_cipher(enum srtp_suite suite)
+{
+	switch (suite) {
+
+	case SRTP_AES_CM_128_HMAC_SHA1_32: return SRTP_AES_ICM_128;
+	case SRTP_AES_CM_128_HMAC_SHA1_80: return SRTP_AES_ICM_128;
+	case SRTP_AES_256_CM_HMAC_SHA1_32: return SRTP_AES_ICM_256;
+	case SRTP_AES_256_CM_HMAC_SHA1_80: return SRTP_AES_ICM_256;
+	default: return 0;
+	}
+}
+
+
+static uint32_t get_libsrtp_auth(enum srtp_suite suite)
+{
+	switch (suite) {
+
+	case SRTP_AES_CM_128_HMAC_SHA1_32: return SRTP_HMAC_SHA1;
+	case SRTP_AES_CM_128_HMAC_SHA1_80: return SRTP_HMAC_SHA1;
+	case SRTP_AES_256_CM_HMAC_SHA1_32: return SRTP_HMAC_SHA1;
+	case SRTP_AES_256_CM_HMAC_SHA1_80: return SRTP_HMAC_SHA1;
+	default: return 0;
+	}
+}
+
+
+static int perftest_libsrtp_encode(struct packets *mbv, enum srtp_suite suite,
+				   unsigned auth_bits)
 {
 	srtp_t srtp = 0;
 	srtp_policy_t policy_tx;
@@ -149,13 +218,14 @@ static int perftest_libsrtp_encode(struct packets *mbv, unsigned auth_bits)
 	srtp_err_status_t e;
 	const int exp_len = (int)(mbv->srtp_packet_len);
 	int len, err = 0;
+	size_t salt_len = get_saltlen(suite);
 
 	memset(&policy, 0, sizeof(policy));
-	policy.cipher_type     = SRTP_AES_ICM_128;
-	policy.cipher_key_len  = (int)master_key_len + SALT_LEN;
-	policy.auth_type       = SRTP_HMAC_SHA1;
-	policy.auth_key_len    = 20;
-	policy.auth_tag_len    = auth_bits/8;
+	policy.cipher_type     = get_libsrtp_cipher(suite);
+	policy.cipher_key_len  = (int)(master_key_len + salt_len);
+	policy.auth_type       = get_libsrtp_auth(suite);
+	policy.auth_key_len    = suite_is_gcm(suite) ? 0 : 20;
+	policy.auth_tag_len    = (int)get_taglen(suite);
 	policy.sec_serv        = sec_serv_conf | sec_serv_auth;
 
 	memset(&policy_tx, 0, sizeof(policy_tx));
@@ -167,7 +237,7 @@ static int perftest_libsrtp_encode(struct packets *mbv, unsigned auth_bits)
 
 	e = srtp_create(&srtp, &policy_tx);
 	if (e != srtp_err_status_ok) {
-		DEBUG_WARNING("srtp_create failed (e=%d)\n", e);
+		DEBUG_WARNING("enc: srtp_create failed (e=%d)\n", e);
 		err = EPROTO;
 		goto out;
 	}
@@ -189,7 +259,7 @@ static int perftest_libsrtp_encode(struct packets *mbv, unsigned auth_bits)
 		}
 		if (len != exp_len) {
 			DEBUG_WARNING("libsrtp: len: expect %d, got %d\n",
-				      len, exp_len);
+				      exp_len, len);
 			err = EPROTO;
 			break;
 		}
@@ -206,7 +276,8 @@ static int perftest_libsrtp_encode(struct packets *mbv, unsigned auth_bits)
 }
 
 
-static int perftest_libsrtp_decode(struct packets *mbv, unsigned auth_bits)
+static int perftest_libsrtp_decode(struct packets *mbv, enum srtp_suite suite,
+				   unsigned auth_bits)
 {
 	srtp_t srtp = 0;
 	srtp_policy_t policy_rx;
@@ -214,14 +285,15 @@ static int perftest_libsrtp_decode(struct packets *mbv, unsigned auth_bits)
 	unsigned i;
 	srtp_err_status_t e;
 	const int exp_len_rtp = (int)mbv->rtp_packet_len;
+	size_t salt_len = get_saltlen(suite);
 	int len, err = 0;
 
 	memset(&policy, 0, sizeof(policy));
-	policy.cipher_type     = SRTP_AES_ICM_128;
-	policy.cipher_key_len  = (int)master_key_len + SALT_LEN;
-	policy.auth_type       = SRTP_HMAC_SHA1;
-	policy.auth_key_len    = 20;
-	policy.auth_tag_len    = auth_bits/8;
+	policy.cipher_type     = get_libsrtp_cipher(suite);
+	policy.cipher_key_len  = (int)(master_key_len + salt_len);
+	policy.auth_type       = get_libsrtp_auth(suite);
+	policy.auth_key_len    = suite_is_gcm(suite) ? 0 : 20;
+	policy.auth_tag_len    = (int)get_taglen(suite);
 	policy.sec_serv        = sec_serv_conf;
 	policy.sec_serv       |= sec_serv_auth;
 
@@ -234,7 +306,7 @@ static int perftest_libsrtp_decode(struct packets *mbv, unsigned auth_bits)
 
 	e = srtp_create(&srtp, &policy_rx);
 	if (e != srtp_err_status_ok) {
-		DEBUG_WARNING("srtp_create failed (e=%d)\n", e);
+		DEBUG_WARNING("dec: srtp_create failed (e=%d)\n", e);
 		err = EPROTO;
 		goto out;
 	}
@@ -276,10 +348,11 @@ static int perftest_libsrtp_decode(struct packets *mbv, unsigned auth_bits)
 static int perftest_native_encode(struct packets *mbv, enum srtp_suite suite)
 {
 	struct srtp *ctx = NULL;
+	size_t salt_len = get_saltlen(suite);
 	unsigned i;
 	int err;
 
-	err = srtp_alloc(&ctx, suite, master_key, master_key_len + SALT_LEN,
+	err = srtp_alloc(&ctx, suite, master_key, master_key_len + salt_len,
 			 0);
 	if (err) {
 		DEBUG_WARNING("srtp_alloc failed: %m\n", err);
@@ -297,7 +370,10 @@ static int perftest_native_encode(struct packets *mbv, enum srtp_suite suite)
 		if (err)
 			break;
 		if (mb->end != mbv->srtp_packet_len) {
-			DEBUG_WARNING("native: i=%u len\n", i);
+			DEBUG_WARNING("native: encode: i=%u"
+				      " length mismatch"
+				      " (expected=%zu, mb=%zu)\n",
+				      i, mbv->srtp_packet_len, mb->end);
 			err = EPROTO;
 			break;
 		}
@@ -313,10 +389,11 @@ static int perftest_native_encode(struct packets *mbv, enum srtp_suite suite)
 static int perftest_native_decode(struct packets *mbv, enum srtp_suite suite)
 {
 	struct srtp *ctx = NULL;
+	size_t salt_len = get_saltlen(suite);
 	unsigned i;
 	int err;
 
-	err = srtp_alloc(&ctx, suite, master_key, master_key_len + SALT_LEN,
+	err = srtp_alloc(&ctx, suite, master_key, master_key_len + salt_len,
 			 0);
 	if (err)
 		goto out;
@@ -448,6 +525,9 @@ int main(int argc, char *argv[])
 	enum srtp_suite suite;
 	int err = 0;
 
+	memset(&mbv_libsrtp, 0, sizeof(mbv_libsrtp));
+	memset(&mbv_native, 0, sizeof(mbv_native));
+
 	for (;;) {
 
 		const int c = getopt(argc, argv, "a:ce:p:n:s:hv");
@@ -560,12 +640,14 @@ int main(int argc, char *argv[])
 		goto out;
 	}
 
+	re_printf("suite:         %s\n", srtp_suite_name(suite));
+
 	if (verbose)
 		re_printf("creating %u packets\n", num);
 	err |= packets_init(&mbv_libsrtp, num, payload, payload_len,
-			    auth_bits);
+			    suite);
 	err |= packets_init(&mbv_native, num, payload, payload_len,
-			    auth_bits);
+			    suite);
 	if (err)
 		goto out;
 
@@ -578,7 +660,7 @@ int main(int argc, char *argv[])
 
 	t0 = tmr_microseconds();
 #ifdef HAVE_LIBSRTP
-	err = perftest_libsrtp_encode(&mbv_libsrtp, auth_bits);
+	err = perftest_libsrtp_encode(&mbv_libsrtp, suite, auth_bits);
 	if (err) {
 		re_fprintf(stderr, "perftest_libsrtp_encode failed: %m\n",
 			   err);
@@ -643,7 +725,7 @@ int main(int argc, char *argv[])
 
 	t0 = tmr_microseconds();
 #ifdef HAVE_LIBSRTP
-	err = perftest_libsrtp_decode(&mbv_libsrtp, auth_bits);
+	err = perftest_libsrtp_decode(&mbv_libsrtp, suite, auth_bits);
 	if (err) {
 		re_fprintf(stderr, "perftest_libsrtp_decode failed:"
 			   " %m\n", err);
