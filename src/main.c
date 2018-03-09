@@ -41,7 +41,12 @@
 #if LIBSRTP_VERSION == 1
 #define SRTP_AES_ICM_128    AES_ICM
 #define SRTP_AES_ICM_256    AES_ICM
+#define SRTP_AES_GCM_128    AES_128_GCM
+#define SRTP_AES_GCM_256    AES_256_GCM
+
 #define SRTP_HMAC_SHA1      HMAC_SHA1
+#define SRTP_NULL_AUTH      NULL_AUTH
+
 #define srtp_err_status_ok  err_status_ok
 typedef err_status_t        srtp_err_status_t;
 typedef crypto_policy_t     srtp_crypto_policy_t;
