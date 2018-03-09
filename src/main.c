@@ -40,6 +40,7 @@
 /* backwards compatible wrappers */
 #if LIBSRTP_VERSION == 1
 #define SRTP_AES_ICM_128    AES_128_ICM
+#define SRTP_AES_ICM_256    AES_256_ICM
 #define SRTP_HMAC_SHA1      HMAC_SHA1
 #define srtp_err_status_ok  err_status_ok
 typedef err_status_t        srtp_err_status_t;
