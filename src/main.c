@@ -202,8 +202,12 @@ static uint32_t get_libsrtp_cipher(enum srtp_suite suite)
 	case SRTP_AES_CM_128_HMAC_SHA1_80: return SRTP_AES_ICM_128;
 	case SRTP_AES_256_CM_HMAC_SHA1_32: return SRTP_AES_ICM_256;
 	case SRTP_AES_256_CM_HMAC_SHA1_80: return SRTP_AES_ICM_256;
+#if SRTP_AES_GCM_128
 	case SRTP_AES_128_GCM:             return SRTP_AES_GCM_128;
+#endif
+#if SRTP_AES_GCM_256
 	case SRTP_AES_256_GCM:             return SRTP_AES_GCM_256;
+#endif
 	default: return 0;
 	}
 }
