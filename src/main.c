@@ -86,6 +86,8 @@ static size_t get_taglen(enum srtp_suite suite)
 	case SRTP_AES_CM_128_HMAC_SHA1_80: return 10;
 	case SRTP_AES_256_CM_HMAC_SHA1_32: return 4;
 	case SRTP_AES_256_CM_HMAC_SHA1_80: return 10;
+	case SRTP_AES_128_GCM:             return 16;
+	case SRTP_AES_256_GCM:             return 16;
 	default: return 0;
 	}
 }
@@ -161,6 +163,8 @@ static size_t get_saltlen(enum srtp_suite suite)
 	case SRTP_AES_CM_128_HMAC_SHA1_80: return 14;
 	case SRTP_AES_256_CM_HMAC_SHA1_32: return 14;
 	case SRTP_AES_256_CM_HMAC_SHA1_80: return 14;
+	case SRTP_AES_128_GCM:             return 12;
+	case SRTP_AES_256_GCM:             return 12;
 	default: return 0;
 	}
 }
@@ -174,6 +178,8 @@ static bool suite_is_gcm(enum srtp_suite suite)
 	case SRTP_AES_CM_128_HMAC_SHA1_80: return false;
 	case SRTP_AES_256_CM_HMAC_SHA1_32: return false;
 	case SRTP_AES_256_CM_HMAC_SHA1_80: return false;
+	case SRTP_AES_128_GCM:             return true;
+	case SRTP_AES_256_GCM:             return true;
 	default: return false;
 	}
 }
@@ -190,6 +196,8 @@ static uint32_t get_libsrtp_cipher(enum srtp_suite suite)
 	case SRTP_AES_CM_128_HMAC_SHA1_80: return SRTP_AES_ICM_128;
 	case SRTP_AES_256_CM_HMAC_SHA1_32: return SRTP_AES_ICM_256;
 	case SRTP_AES_256_CM_HMAC_SHA1_80: return SRTP_AES_ICM_256;
+	case SRTP_AES_128_GCM:             return SRTP_AES_GCM_128;
+	case SRTP_AES_256_GCM:             return SRTP_AES_GCM_256;
 	default: return 0;
 	}
 }
@@ -203,6 +211,8 @@ static uint32_t get_libsrtp_auth(enum srtp_suite suite)
 	case SRTP_AES_CM_128_HMAC_SHA1_80: return SRTP_HMAC_SHA1;
 	case SRTP_AES_256_CM_HMAC_SHA1_32: return SRTP_HMAC_SHA1;
 	case SRTP_AES_256_CM_HMAC_SHA1_80: return SRTP_HMAC_SHA1;
+	case SRTP_AES_128_GCM:             return SRTP_NULL_AUTH;
+	case SRTP_AES_256_GCM:             return SRTP_NULL_AUTH;
 	default: return 0;
 	}
 }
@@ -632,6 +642,10 @@ int main(int argc, char *argv[])
 		suite = SRTP_AES_256_CM_HMAC_SHA1_32;
 	else if (master_key_len == 32 && auth_bits == 80)
 		suite = SRTP_AES_256_CM_HMAC_SHA1_80;
+	else if (master_key_len == 16 && auth_bits == 0)
+		suite = SRTP_AES_128_GCM;
+	else if (master_key_len == 32 && auth_bits == 0)
+		suite = SRTP_AES_256_GCM;
 	else {
 		re_fprintf(stderr, "no matching suite -- invalid parameters"
 			   " (master_key = %u bytes, auth_bits = %u)\n",
