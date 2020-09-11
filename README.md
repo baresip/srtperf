@@ -22,4 +22,4 @@ libre version 0.5.0 or later is needed
 Reference:
 
 [1] libsrtp https://github.com/cisco/libsrtp
-[2] libre http://www.creytiv.com/re.html
+[2] libre https://github.com/creytiv/re
