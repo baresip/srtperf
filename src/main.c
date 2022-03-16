@@ -501,23 +501,6 @@ static void test_hexdump_dual(FILE *f,
 }
 
 
-static uint64_t tmr_microseconds(void)
-{
-	struct timeval now;
-	uint64_t usec;
-
-	if (0 != gettimeofday(&now, NULL)) {
-		DEBUG_WARNING("jiffies: gettimeofday() failed (%m)\n", errno);
-		return 0;
-	}
-
-	usec  = (uint64_t)now.tv_sec * (uint64_t)1000000;
-	usec += now.tv_usec;
-
-	return usec;
-}
-
-
 static void usage(void)
 {
 	(void)re_fprintf(stderr,
@@ -682,7 +665,7 @@ int main(int argc, char *argv[])
 	if (verbose)
 		re_printf("starting encryption tests..\n");
 
-	t0 = tmr_microseconds();
+	t0 = tmr_jiffies_usec();
 #ifdef HAVE_LIBSRTP
 	err = perftest_libsrtp_encode(&mbv_libsrtp, suite, auth_bits);
 	if (err) {
@@ -691,9 +674,9 @@ int main(int argc, char *argv[])
 		goto out;
 	}
 #endif
-	t1 = tmr_microseconds();
+	t1 = tmr_jiffies_usec();
 	err = perftest_native_encode(&mbv_native, suite);
-	t2 = tmr_microseconds();
+	t2 = tmr_jiffies_usec();
 	if (err) {
 		re_fprintf(stderr, "perftest_native_encode failed: %m\n", err);
 		goto out;
@@ -747,7 +730,7 @@ int main(int argc, char *argv[])
 
 	re_printf("\n");
 
-	t0 = tmr_microseconds();
+	t0 = tmr_jiffies_usec();
 #ifdef HAVE_LIBSRTP
 	err = perftest_libsrtp_decode(&mbv_libsrtp, suite, auth_bits);
 	if (err) {
@@ -756,9 +739,9 @@ int main(int argc, char *argv[])
 		goto out;
 	}
 #endif
-	t1 = tmr_microseconds();
+	t1 = tmr_jiffies_usec();
 	err = perftest_native_decode(&mbv_native, suite);
-	t2 = tmr_microseconds();
+	t2 = tmr_jiffies_usec();
 	if (err) {
 		re_fprintf(stderr, "perftest_native_decode failed: %m\n", err);
 		goto out;
