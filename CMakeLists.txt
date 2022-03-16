@@ -29,6 +29,15 @@ find_package(OpenSSL)
 
 #option(USE_OPENSSL "Enable OpenSSL" ${OPENSSL_FOUND})
 
+set(CMAKE_C_STANDARD 11)
+
+if(NOT MSVC)
+  add_compile_options(
+    -Wall -Wextra
+  )
+endif()
+
+
 include_directories(
   src
   /usr/local/include
