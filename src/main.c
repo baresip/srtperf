@@ -704,10 +704,10 @@ int main(int argc, char *argv[])
 		  num, (int)(t2-t1),
 		  100.0 * ((int)(t2-t1) - (int)(t1-t0)) / (t1-t0) );
 
-	re_printf("libsrtp packets per. second:   %lld\n",
-		  1000000LL * num / (int)(t1-t0));
-	re_printf("native packets per. second:    %lld\n",
-		  1000000LL * num / (int)(t2-t1));
+	re_printf("libsrtp packets per. second:   %f\n",
+		  1000000LL * num / (double)(t1-t0));
+	re_printf("native packets per. second:    %f\n",
+		  1000000LL * num / (double)(t2-t1));
 
 
 #ifdef HAVE_LIBSRTP
