@@ -228,8 +228,7 @@ static uint32_t get_libsrtp_auth(enum srtp_suite suite)
 }
 
 
-static int perftest_libsrtp_encode(struct packets *mbv, enum srtp_suite suite,
-				   unsigned auth_bits)
+static int perftest_libsrtp_encode(struct packets *mbv, enum srtp_suite suite)
 {
 	srtp_t srtp = 0;
 	srtp_policy_t policy_tx;
@@ -296,8 +295,7 @@ static int perftest_libsrtp_encode(struct packets *mbv, enum srtp_suite suite,
 }
 
 
-static int perftest_libsrtp_decode(struct packets *mbv, enum srtp_suite suite,
-				   unsigned auth_bits)
+static int perftest_libsrtp_decode(struct packets *mbv, enum srtp_suite suite)
 {
 	srtp_t srtp = 0;
 	srtp_policy_t policy_rx;
@@ -667,7 +665,7 @@ int main(int argc, char *argv[])
 
 	t0 = tmr_jiffies_usec();
 #ifdef HAVE_LIBSRTP
-	err = perftest_libsrtp_encode(&mbv_libsrtp, suite, auth_bits);
+	err = perftest_libsrtp_encode(&mbv_libsrtp, suite);
 	if (err) {
 		re_fprintf(stderr, "perftest_libsrtp_encode failed: %m\n",
 			   err);
@@ -732,7 +730,7 @@ int main(int argc, char *argv[])
 
 	t0 = tmr_jiffies_usec();
 #ifdef HAVE_LIBSRTP
-	err = perftest_libsrtp_decode(&mbv_libsrtp, suite, auth_bits);
+	err = perftest_libsrtp_decode(&mbv_libsrtp, suite);
 	if (err) {
 		re_fprintf(stderr, "perftest_libsrtp_decode failed:"
 			   " %m\n", err);
