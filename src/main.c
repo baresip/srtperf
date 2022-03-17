@@ -71,7 +71,6 @@ static const uint8_t master_key[MAX_KEY_LEN + MAX_SALT_LEN] = {
 static size_t master_key_len = 16;    /* bytes, excl. Salt */
 
 static uint16_t seq_init = 1;
-static bool add_csrc = false;
 
 
 struct packets {
@@ -112,11 +111,6 @@ static int packets_init(struct packets *mbv, unsigned num,
 	memset(&hdr, 0, sizeof(hdr));
 	hdr.ver  = RTP_VERSION;
 	hdr.ssrc = SSRC;
-
-	if (add_csrc) {
-		hdr.cc = 1;
-		hdr.csrc[0] = 0x0000caca;
-	}
 
 	mbv->mbv = mem_zalloc(num * sizeof(struct mbuf *), NULL);
 	if (!mbv->mbv)
@@ -505,7 +499,6 @@ static void usage(void)
 			 "srtperf -a <bits> -e <bits>"
 			 " -n <NUM> -p <bytes> -h\n");
 	(void)re_fprintf(stderr, "\t-a <bits>   Authentication bits\n");
-	(void)re_fprintf(stderr, "\t-c          Add Contributing source\n");
 	(void)re_fprintf(stderr, "\t-e <bits>   Encryption key bits\n");
 	(void)re_fprintf(stderr, "\t-n NUM      Number of rounds in test\n");
 	(void)re_fprintf(stderr, "\t-p <bytes>  RTP Payload size in bytes\n");
@@ -531,7 +524,7 @@ int main(int argc, char *argv[])
 
 	for (;;) {
 
-		const int c = getopt(argc, argv, "a:ce:p:n:s:hv");
+		const int c = getopt(argc, argv, "a:e:p:n:s:hv");
 		if (0 > c)
 			break;
 
@@ -539,10 +532,6 @@ int main(int argc, char *argv[])
 
 		case 'a':
 			auth_bits = atoi(optarg);
-			break;
-
-		case 'c':
-			add_csrc = true;
 			break;
 
 		case 'e':
