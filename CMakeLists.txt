@@ -48,6 +48,7 @@ link_directories(
 add_definitions(
   -DHAVE_INET6
   -DHAVE_LIBSRTP
+  -DUSE_OPENSSL
   )
 
 ##############################################################################
