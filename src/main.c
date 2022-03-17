@@ -534,7 +534,9 @@ int main(int argc, char *argv[])
 		}
 	}
 
-	libre_init();
+	err = libre_init();
+	if (err)
+		return err;
 
 	re_printf("srtperf -- SRTP performance testing program\n");
 	re_printf("parameters:    seq = %u, payload = %u bytes,"
