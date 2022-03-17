@@ -19,22 +19,16 @@ project(srtperf)
 # Module/Package Includes
 #
 
-find_package(OpenSSL)
-
 
 ##############################################################################
 #
 # Compile options
 #
 
-#option(USE_OPENSSL "Enable OpenSSL" ${OPENSSL_FOUND})
-
 set(CMAKE_C_STANDARD 11)
 
 if(NOT MSVC)
-  add_compile_options(
-    -Wall -Wextra
-  )
+  add_compile_options(-Wall -Wextra)
 endif()
 
 
@@ -54,7 +48,6 @@ link_directories(
 add_definitions(
   -DHAVE_INET6
   -DHAVE_LIBSRTP
-  -DLIBSRTP_VERSION=2
   )
 
 ##############################################################################
@@ -62,7 +55,5 @@ add_definitions(
 # Source section
 #
 
-add_executable(${PROJECT_NAME}
-  src/main.c
-)
+add_executable(${PROJECT_NAME} src/main.c)
 target_link_libraries(${PROJECT_NAME} -lrem -lre -lsrtp2 -lcrypto -lz -lpthread)
