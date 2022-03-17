@@ -4,22 +4,22 @@ srtperf
 SRTP Performance test
 
 
-[![Build Status](https://travis-ci.org/alfredh/srtperf.svg?branch=master)](https://travis-ci.org/alfredh/srtperf)
 
 
 this program compares the performance of two SRTP stacks:
 
-1. libsrtp [1]
-2. libre [2]
+- libsrtp (version 2.0 or later) [1]
+- libre (version 2.0.0 or later) [2]
 
 
-you need to have libsrtp-dev and libre-dev packages installed
+You need to have libsrtp-dev and libre-dev packages installed
 before building this program.
 
-libre version 0.5.0 or later is needed
+
+libre version 2.0.0 or later is needed
 
 
 Reference:
 
 [1] libsrtp https://github.com/cisco/libsrtp
-[2] libre https://github.com/creytiv/re
+[2] libre https://github.com/baresip/re
