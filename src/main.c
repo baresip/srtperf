@@ -1,26 +1,13 @@
 /**
  * @file main.c Main application code
  *
- * Copyright (C) 2010 Alfred E. Heggestad
+ * Copyright (C) 2010 - 2022 Alfred E. Heggestad
  */
 
 
 #ifdef HAVE_LIBSRTP
-
-#if LIBSRTP_VERSION == 1
-
-#if defined (__GNUC__) && !defined (asm)
-#define asm __asm__  /* workaround */
-#endif
-#include <srtp/srtp.h>
-
-#elif LIBSRTP_VERSION == 2
-
 #include <srtp2/srtp.h>
 #include <srtp2/crypto_types.h>
-
-#endif
-
 #endif
 
 #include <openssl/crypto.h>
@@ -35,22 +22,6 @@
 #define DEBUG_MODULE "srtperf"
 #define DEBUG_LEVEL 6
 #include <re_dbg.h>
-
-
-/* backwards compatible wrappers */
-#if LIBSRTP_VERSION == 1
-#define SRTP_AES_ICM_128    AES_ICM
-#define SRTP_AES_ICM_256    AES_ICM
-#define SRTP_AES_GCM_128    AES_128_GCM
-#define SRTP_AES_GCM_256    AES_256_GCM
-
-#define SRTP_HMAC_SHA1      HMAC_SHA1
-#define SRTP_NULL_AUTH      NULL_AUTH
-
-#define srtp_err_status_ok  err_status_ok
-typedef err_status_t        srtp_err_status_t;
-typedef crypto_policy_t     srtp_crypto_policy_t;
-#endif
 
 
 #define SSRC 0x01020304
@@ -583,10 +554,8 @@ int main(int argc, char *argv[])
 #endif
 
 #ifdef HAVE_LIBSRTP
-	re_printf("HAVE_LIBSRTP:  yes (%d)\n", LIBSRTP_VERSION);
-#if LIBSRTP_VERSION == 2
+	re_printf("HAVE_LIBSRTP:  yes\n");
 	re_printf("libsrtp:       %s\n", srtp_get_version_string());
-#endif
 #else
 	re_printf("HAVE_LIBSRTP:  no\n");
 #endif
