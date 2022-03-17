@@ -4,12 +4,10 @@
  * Copyright (C) 2010 - 2022 Alfred E. Heggestad
  */
 
-
 #ifdef HAVE_LIBSRTP
 #include <srtp2/srtp.h>
 #include <srtp2/crypto_types.h>
 #endif
-
 #include <openssl/crypto.h>
 #include <sys/time.h>
 #include <string.h>
@@ -24,8 +22,8 @@
 #include <re_dbg.h>
 
 
-#define SSRC 0x01020304
-#define MAX_KEY_LEN 32
+#define DUMMY_SSRC   0x01020304
+#define MAX_KEY_LEN  32
 #define MAX_SALT_LEN 14
 
 
@@ -40,7 +38,6 @@ static const uint8_t master_key[MAX_KEY_LEN + MAX_SALT_LEN] = {
 	0x44, 0x44, 0x44, 0x44, 0x44, 0x44, 0x44,
 };
 static size_t master_key_len = 16;    /* bytes, excl. Salt */
-
 static uint16_t seq_init = 1;
 
 
@@ -81,7 +78,7 @@ static int packets_init(struct packets *mbv, unsigned num,
 
 	memset(&hdr, 0, sizeof(hdr));
 	hdr.ver  = RTP_VERSION;
-	hdr.ssrc = SSRC;
+	hdr.ssrc = DUMMY_SSRC;
 
 	mbv->mbv = mem_zalloc(num * sizeof(struct mbuf *), NULL);
 	if (!mbv->mbv)
@@ -118,10 +115,9 @@ static int packets_init(struct packets *mbv, unsigned num,
 
 static void mbv_reset(struct packets *mbv)
 {
-	unsigned i;
-	for (i=0; i<mbv->num; i++) {
+	for (unsigned i=0; i<mbv->num; i++)
 		mem_deref(mbv->mbv[i]);
-	}
+
 	mem_deref(mbv->mbv);
 }
 
@@ -251,10 +247,8 @@ static int perftest_libsrtp_encode(struct packets *mbv, enum srtp_suite suite)
 	}
 
  out:
-#if 1
 	if (srtp)
 		srtp_dealloc(srtp);
-#endif
 
 	return err;
 }
@@ -318,10 +312,8 @@ static int perftest_libsrtp_decode(struct packets *mbv, enum srtp_suite suite)
 	}
 
  out:
-#if 1
 	if (srtp)
 		srtp_dealloc(srtp);
-#endif
 
 	return err;
 }
@@ -549,7 +541,6 @@ int main(int argc, char *argv[])
 	re_printf("arch:          %s\n", sys_arch_get());
 
 #ifdef USE_OPENSSL
-
 	re_printf("openssl info:  %s\n%s\n",
 		  SSLeay_version(SSLEAY_VERSION),
 		  SSLeay_version(SSLEAY_CFLAGS));
@@ -616,7 +607,6 @@ int main(int argc, char *argv[])
 	if (err)
 		goto out;
 
-
 	/*
 	 * Start timing now
 	 */
@@ -649,7 +639,6 @@ int main(int argc, char *argv[])
 		  1000000LL * num / (double)(t1-t0));
 	re_printf("native packets per. second:    %f\n",
 		  1000000LL * num / (double)(t2-t1));
-
 
 #ifdef HAVE_LIBSRTP
 	/* compare all SRTP packets */
