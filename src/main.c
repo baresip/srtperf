@@ -21,7 +21,7 @@
 #include <re_dbg.h>
 
 
-#define DUMMY_SSRC   0x01020304
+static const uint32_t DUMMY_SSRC = 0x01020304;
 #define MAX_KEY_LEN  32
 #define MAX_SALT_LEN 14
 
