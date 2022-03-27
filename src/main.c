@@ -21,6 +21,11 @@
 #include <re_dbg.h>
 
 
+struct param {
+	uint16_t seq_init;
+};
+
+
 static const uint32_t DUMMY_SSRC = 0x01020304;
 #define MAX_KEY_LEN  32
 #define MAX_SALT_LEN 14
@@ -37,7 +42,6 @@ static const uint8_t master_key[MAX_KEY_LEN + MAX_SALT_LEN] = {
 	0x44, 0x44, 0x44, 0x44, 0x44, 0x44, 0x44,
 };
 static size_t master_key_len = 16;    /* bytes, excl. Salt */
-static const uint16_t seq_init = 1;
 
 
 struct packets {
@@ -65,7 +69,8 @@ static size_t get_taglen(enum srtp_suite suite)
 }
 
 
-static int packets_init(struct packets *mbv, unsigned num,
+static int packets_init(const struct param *prm,
+			struct packets *mbv, unsigned num,
 			const uint8_t *payload, unsigned payload_len,
 			enum srtp_suite suite)
 {
@@ -73,7 +78,7 @@ static int packets_init(struct packets *mbv, unsigned num,
 		.ver  = RTP_VERSION,
 		.ssrc = DUMMY_SSRC
 	};
-	uint16_t seq = seq_init;
+	uint16_t seq = prm->seq_init;
 	size_t tag_len = get_taglen(suite);
 	int err = 0;
 
@@ -414,6 +419,9 @@ int main(int argc, char *argv[])
 	unsigned i;
 	bool verbose = false;
 	enum srtp_suite suite;
+	struct param param = {
+		.seq_init = 1
+	};
 	int err = 0;
 
 	memset(&mbv_libsrtp, 0, sizeof(mbv_libsrtp));
@@ -463,7 +471,7 @@ int main(int argc, char *argv[])
 	re_printf("srtperf -- SRTP performance testing program\n");
 	re_printf("parameters:    seq = %u, payload = %u bytes,"
 		  " encr_key = %u bits, auth_bits = %u\n",
-		  seq_init, payload_len, master_key_len*8, auth_bits);
+		  param.seq_init, payload_len, master_key_len*8, auth_bits);
 	re_printf("build:         %H\n", sys_build_get, 0);
 	re_printf("compiler:      %s\n", __VERSION__);
 	re_printf("libre:         %s\n", sys_libre_version_get());
@@ -530,9 +538,9 @@ int main(int argc, char *argv[])
 
 	if (verbose)
 		re_printf("creating %u packets\n", num);
-	err |= packets_init(&mbv_libsrtp, num, payload, payload_len,
+	err |= packets_init(&param, &mbv_libsrtp, num, payload, payload_len,
 			    suite);
-	err |= packets_init(&mbv_native, num, payload, payload_len,
+	err |= packets_init(&param, &mbv_native, num, payload, payload_len,
 			    suite);
 	if (err)
 		goto out;
