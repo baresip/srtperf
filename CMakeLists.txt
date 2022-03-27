@@ -56,5 +56,5 @@ add_definitions(
 # Source section
 #
 
-add_executable(${PROJECT_NAME} src/main.c)
+add_executable(${PROJECT_NAME} src/main.c src/hexdump.c)
 target_link_libraries(${PROJECT_NAME} -lrem -lre -lsrtp2 -lcrypto -lz -lpthread)

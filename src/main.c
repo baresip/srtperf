@@ -13,6 +13,7 @@
 #include <getopt.h>
 #include <math.h>
 #include <re.h>
+#include "core.h"
 
 
 #define DEBUG_MODULE "srtperf"
@@ -390,62 +391,6 @@ static int perftest_native_decode(struct packets *mbv, enum srtp_suite suite)
 }
 
 
-static void test_hexdump_dual(FILE *f,
-			      const void *ep, size_t elen,
-			      const void *ap, size_t alen)
-{
-	const uint8_t *ebuf = ep;
-	const uint8_t *abuf = ap;
-	size_t i, j, len;
-#define WIDTH 8
-
-	if (!f || !ep || !ap)
-		return;
-
-	len = max(elen, alen);
-
-	(void)re_fprintf(f, "\nOffset:   Expected (%u bytes):    "
-			 "   Actual (%u bytes):\n", elen, alen);
-
-	for (i=0; i < len; i += WIDTH) {
-
-		(void)re_fprintf(f, "0x%04x   ", i);
-
-		for (j=0; j<WIDTH; j++) {
-			const size_t pos = i+j;
-			if (pos < elen)
-				(void)re_fprintf(f, " %02x", ebuf[pos]);
-			else
-				(void)re_fprintf(f, "   ");
-		}
-
-		(void)re_fprintf(f, "    ");
-
-		for (j=0; j<WIDTH; j++) {
-			const size_t pos = i+j;
-			if (pos < alen) {
-				bool wrong;
-
-				if (pos < elen)
-					wrong = ebuf[pos] != abuf[pos];
-				else
-					wrong = true;
-
-				if (wrong)
-					(void)re_fprintf(f, "\x1b[33m");
-				(void)re_fprintf(f, " %02x", abuf[pos]);
-				if (wrong)
-					(void)re_fprintf(f, "\x1b[;m");
-			}
-			else
-				(void)re_fprintf(f, "   ");
-		}
-
-		(void)re_fprintf(f, "\n");
-	}
-
-	(void)re_fprintf(f, "\n");
-}
 
 
 static void usage(void)
@@ -651,7 +596,7 @@ int main(int argc, char *argv[])
 			err = EBADMSG;
 			DEBUG_WARNING("SRTP packet %u content mismatch\n", i);
 
-			test_hexdump_dual(stderr,
+			hexdump_dual(stderr,
 					  mbv_libsrtp.mbv[i]->buf,
 					  mbv_libsrtp.mbv[i]->end,
 					  mbv_native.mbv[i]->buf,
@@ -710,7 +655,7 @@ int main(int argc, char *argv[])
 			err = EBADMSG;
 			DEBUG_WARNING("RTP packet %u content mismatch\n", i);
 
-			test_hexdump_dual(stderr,
+			hexdump_dual(stderr,
 					  payload,
 					  payload_len,
 					  &mbv_native.mbv[i]->buf[hdr_len],
