@@ -21,15 +21,25 @@
 #include <re_dbg.h>
 
 
+#define MAX_KEY_LEN  32
+#define MAX_SALT_LEN 14
+
+
 struct param {
 	uint16_t seq_init;
 	size_t master_key_len;    /* bytes, excl. Salt */
 };
 
+struct packets {
+	struct mbuf **mbv;
+	size_t num;
+	size_t rtp_hdr_len;
+	size_t payload_len;
+	size_t rtp_packet_len;
+	size_t srtp_packet_len;
+};
 
 static const uint32_t DUMMY_SSRC = 0x01020304;
-#define MAX_KEY_LEN  32
-#define MAX_SALT_LEN 14
 
 
 /* 128 - 256 bits key */
@@ -41,16 +51,6 @@ static const uint8_t master_key[MAX_KEY_LEN + MAX_SALT_LEN] = {
 
 	0x44, 0x44, 0x44, 0x44, 0x44, 0x44, 0x44,
 	0x44, 0x44, 0x44, 0x44, 0x44, 0x44, 0x44,
-};
-
-
-struct packets {
-	struct mbuf **mbv;
-	size_t num;
-	size_t rtp_hdr_len;
-	size_t payload_len;
-	size_t rtp_packet_len;
-	size_t srtp_packet_len;
 };
 
 
@@ -402,6 +402,31 @@ static int perftest_native_decode(const struct param *prm,
 }
 
 
+static enum srtp_suite resolve_suite(unsigned master_key_len,
+				     unsigned auth_bits)
+{
+	enum srtp_suite suite;
+
+	if (master_key_len == 16 && auth_bits == 32)
+		suite = SRTP_AES_CM_128_HMAC_SHA1_32;
+	else if (master_key_len == 16 && auth_bits == 80)
+		suite = SRTP_AES_CM_128_HMAC_SHA1_80;
+	else if (master_key_len == 32 && auth_bits == 32)
+		suite = SRTP_AES_256_CM_HMAC_SHA1_32;
+	else if (master_key_len == 32 && auth_bits == 80)
+		suite = SRTP_AES_256_CM_HMAC_SHA1_80;
+	else if (master_key_len == 16 && auth_bits == 0)
+		suite = SRTP_AES_128_GCM;
+	else if (master_key_len == 32 && auth_bits == 0)
+		suite = SRTP_AES_256_GCM;
+	else {
+		return (enum srtp_suite)-1;
+	}
+
+	return suite;
+}
+
+
 static void usage(void)
 {
 	(void)re_fprintf(stderr,
@@ -522,19 +547,8 @@ int main(int argc, char *argv[])
 
 	rand_bytes(payload, payload_len);
 
-	if (param.master_key_len == 16 && auth_bits == 32)
-		suite = SRTP_AES_CM_128_HMAC_SHA1_32;
-	else if (param.master_key_len == 16 && auth_bits == 80)
-		suite = SRTP_AES_CM_128_HMAC_SHA1_80;
-	else if (param.master_key_len == 32 && auth_bits == 32)
-		suite = SRTP_AES_256_CM_HMAC_SHA1_32;
-	else if (param.master_key_len == 32 && auth_bits == 80)
-		suite = SRTP_AES_256_CM_HMAC_SHA1_80;
-	else if (param.master_key_len == 16 && auth_bits == 0)
-		suite = SRTP_AES_128_GCM;
-	else if (param.master_key_len == 32 && auth_bits == 0)
-		suite = SRTP_AES_256_GCM;
-	else {
+	suite = resolve_suite(param.master_key_len, auth_bits);
+	if ((int)suite == -1) {
 		re_fprintf(stderr, "no matching suite -- invalid parameters"
 			   " (master_key = %u bytes, auth_bits = %u)\n",
 			   param.master_key_len, auth_bits);
