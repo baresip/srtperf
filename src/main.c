@@ -37,7 +37,7 @@ static const uint8_t master_key[MAX_KEY_LEN + MAX_SALT_LEN] = {
 	0x44, 0x44, 0x44, 0x44, 0x44, 0x44, 0x44,
 };
 static size_t master_key_len = 16;    /* bytes, excl. Salt */
-static uint16_t seq_init = 1;
+static const uint16_t seq_init = 1;
 
 
 struct packets {
@@ -391,8 +391,6 @@ static int perftest_native_decode(struct packets *mbv, enum srtp_suite suite)
 }
 
 
-
-
 static void usage(void)
 {
 	(void)re_fprintf(stderr,
@@ -402,7 +400,6 @@ static void usage(void)
 	(void)re_fprintf(stderr, "\t-e <bits>   Encryption key bits\n");
 	(void)re_fprintf(stderr, "\t-n NUM      Number of rounds in test\n");
 	(void)re_fprintf(stderr, "\t-p <bytes>  RTP Payload size in bytes\n");
-	(void)re_fprintf(stderr, "\t-s <Seq>    Initial sequence number\n");
 	(void)re_fprintf(stderr, "\t-h          Show summary of options\n");
 	(void)re_fprintf(stderr, "\t-v          Verbose output\n");
 }
@@ -424,7 +421,7 @@ int main(int argc, char *argv[])
 
 	for (;;) {
 
-		const int c = getopt(argc, argv, "a:e:p:n:s:hv");
+		const int c = getopt(argc, argv, "a:e:p:n:hv");
 		if (0 > c)
 			break;
 
@@ -444,10 +441,6 @@ int main(int argc, char *argv[])
 
 		case 'n':
 			num = atoi(optarg);
-			break;
-
-		case 's':
-			seq_init = atoi(optarg);
 			break;
 
 		case 'v':
