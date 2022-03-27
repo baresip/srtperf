@@ -72,7 +72,6 @@ static int packets_init(struct packets *mbv, unsigned num,
 		.ver  = RTP_VERSION,
 		.ssrc = DUMMY_SSRC
 	};
-	unsigned i;
 	uint16_t seq = seq_init;
 	size_t tag_len = get_taglen(suite);
 	int err = 0;
@@ -87,7 +86,7 @@ static int packets_init(struct packets *mbv, unsigned num,
 	mbv->rtp_packet_len = mbv->rtp_hdr_len + payload_len;
 	mbv->srtp_packet_len = mbv->rtp_hdr_len + payload_len + tag_len;
 
-	for (i=0; i<num; i++) {
+	for (unsigned i=0; i<num; i++) {
 
 		size_t len = mbv->rtp_packet_len + 12;
 
@@ -191,7 +190,6 @@ static int perftest_libsrtp_encode(struct packets *mbv, enum srtp_suite suite)
 	srtp_t srtp = 0;
 	srtp_policy_t policy_tx;
 	srtp_crypto_policy_t policy;
-	unsigned i;
 	srtp_err_status_t e;
 	const int exp_len = (int)(mbv->srtp_packet_len);
 	int len, err = 0;
@@ -219,7 +217,7 @@ static int perftest_libsrtp_encode(struct packets *mbv, enum srtp_suite suite)
 		goto out;
 	}
 
-	for (i=0; i<mbv->num; i++) {
+	for (size_t i=0; i<mbv->num; i++) {
 
 		struct mbuf *mb = mbv->mbv[i];
 
@@ -256,7 +254,6 @@ static int perftest_libsrtp_decode(struct packets *mbv, enum srtp_suite suite)
 	srtp_t srtp = 0;
 	srtp_policy_t policy_rx;
 	srtp_crypto_policy_t policy;
-	unsigned i;
 	srtp_err_status_t e;
 	const int exp_len_rtp = (int)mbv->rtp_packet_len;
 	size_t salt_len = get_saltlen(suite);
@@ -285,7 +282,7 @@ static int perftest_libsrtp_decode(struct packets *mbv, enum srtp_suite suite)
 		goto out;
 	}
 
-	for (i=0; i<mbv->num; i++) {
+	for (size_t i=0; i<mbv->num; i++) {
 
 		struct mbuf *mb = mbv->mbv[i];
 
@@ -321,7 +318,6 @@ static int perftest_native_encode(struct packets *mbv, enum srtp_suite suite)
 {
 	struct srtp *ctx = NULL;
 	size_t salt_len = get_saltlen(suite);
-	unsigned i;
 	int err;
 
 	err = srtp_alloc(&ctx, suite, master_key, master_key_len + salt_len,
@@ -331,7 +327,7 @@ static int perftest_native_encode(struct packets *mbv, enum srtp_suite suite)
 		goto out;
 	}
 
-	for (i=0; i<mbv->num; i++) {
+	for (size_t i=0; i<mbv->num; i++) {
 
 		struct mbuf *mb = mbv->mbv[i];
 
@@ -362,7 +358,6 @@ static int perftest_native_decode(struct packets *mbv, enum srtp_suite suite)
 {
 	struct srtp *ctx = NULL;
 	size_t salt_len = get_saltlen(suite);
-	unsigned i;
 	int err;
 
 	err = srtp_alloc(&ctx, suite, master_key, master_key_len + salt_len,
@@ -370,7 +365,7 @@ static int perftest_native_decode(struct packets *mbv, enum srtp_suite suite)
 	if (err)
 		goto out;
 
-	for (i=0; i<mbv->num; i++) {
+	for (size_t i=0; i<mbv->num; i++) {
 
 		struct mbuf *mb = mbv->mbv[i];
 
