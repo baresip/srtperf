@@ -23,6 +23,7 @@
 
 struct param {
 	uint16_t seq_init;
+	size_t master_key_len;    /* bytes, excl. Salt */
 };
 
 
@@ -41,7 +42,6 @@ static const uint8_t master_key[MAX_KEY_LEN + MAX_SALT_LEN] = {
 	0x44, 0x44, 0x44, 0x44, 0x44, 0x44, 0x44,
 	0x44, 0x44, 0x44, 0x44, 0x44, 0x44, 0x44,
 };
-static size_t master_key_len = 16;    /* bytes, excl. Salt */
 
 
 struct packets {
@@ -191,7 +191,8 @@ static uint32_t get_libsrtp_auth(enum srtp_suite suite)
 }
 
 
-static int perftest_libsrtp_encode(struct packets *mbv, enum srtp_suite suite)
+static int perftest_libsrtp_encode(const struct param *prm,
+				   struct packets *mbv, enum srtp_suite suite)
 {
 	srtp_t srtp = 0;
 	srtp_policy_t policy_tx;
@@ -203,7 +204,7 @@ static int perftest_libsrtp_encode(struct packets *mbv, enum srtp_suite suite)
 
 	memset(&policy, 0, sizeof(policy));
 	policy.cipher_type     = get_libsrtp_cipher(suite);
-	policy.cipher_key_len  = (int)(master_key_len + salt_len);
+	policy.cipher_key_len  = (int)(prm->master_key_len + salt_len);
 	policy.auth_type       = get_libsrtp_auth(suite);
 	policy.auth_key_len    = suite_is_gcm(suite) ? 0 : 20;
 	policy.auth_tag_len    = (int)get_taglen(suite);
@@ -255,7 +256,8 @@ static int perftest_libsrtp_encode(struct packets *mbv, enum srtp_suite suite)
 }
 
 
-static int perftest_libsrtp_decode(struct packets *mbv, enum srtp_suite suite)
+static int perftest_libsrtp_decode(const struct param *prm,
+				   struct packets *mbv, enum srtp_suite suite)
 {
 	srtp_t srtp = 0;
 	srtp_policy_t policy_rx;
@@ -267,7 +269,7 @@ static int perftest_libsrtp_decode(struct packets *mbv, enum srtp_suite suite)
 
 	memset(&policy, 0, sizeof(policy));
 	policy.cipher_type     = get_libsrtp_cipher(suite);
-	policy.cipher_key_len  = (int)(master_key_len + salt_len);
+	policy.cipher_key_len  = (int)(prm->master_key_len + salt_len);
 	policy.auth_type       = get_libsrtp_auth(suite);
 	policy.auth_key_len    = suite_is_gcm(suite) ? 0 : 20;
 	policy.auth_tag_len    = (int)get_taglen(suite);
@@ -320,13 +322,15 @@ static int perftest_libsrtp_decode(struct packets *mbv, enum srtp_suite suite)
 #endif
 
 
-static int perftest_native_encode(struct packets *mbv, enum srtp_suite suite)
+static int perftest_native_encode(const struct param *prm,
+				  struct packets *mbv, enum srtp_suite suite)
 {
 	struct srtp *ctx = NULL;
 	size_t salt_len = get_saltlen(suite);
 	int err;
 
-	err = srtp_alloc(&ctx, suite, master_key, master_key_len + salt_len,
+	err = srtp_alloc(&ctx, suite, master_key,
+			 prm->master_key_len + salt_len,
 			 0);
 	if (err) {
 		DEBUG_WARNING("srtp_alloc failed: %m\n", err);
@@ -360,13 +364,15 @@ static int perftest_native_encode(struct packets *mbv, enum srtp_suite suite)
 }
 
 
-static int perftest_native_decode(struct packets *mbv, enum srtp_suite suite)
+static int perftest_native_decode(const struct param *prm,
+				  struct packets *mbv, enum srtp_suite suite)
 {
 	struct srtp *ctx = NULL;
 	size_t salt_len = get_saltlen(suite);
 	int err;
 
-	err = srtp_alloc(&ctx, suite, master_key, master_key_len + salt_len,
+	err = srtp_alloc(&ctx, suite, master_key,
+			 prm->master_key_len + salt_len,
 			 0);
 	if (err)
 		goto out;
@@ -420,7 +426,8 @@ int main(int argc, char *argv[])
 	bool verbose = false;
 	enum srtp_suite suite;
 	struct param param = {
-		.seq_init = 1
+		.seq_init = 1,
+		.master_key_len = 16
 	};
 	int err = 0;
 
@@ -440,7 +447,7 @@ int main(int argc, char *argv[])
 			break;
 
 		case 'e':
-			master_key_len = atoi(optarg)/8;
+			param.master_key_len = atoi(optarg)/8;
 			break;
 
 		case 'p':
@@ -471,7 +478,8 @@ int main(int argc, char *argv[])
 	re_printf("srtperf -- SRTP performance testing program\n");
 	re_printf("parameters:    seq = %u, payload = %u bytes,"
 		  " encr_key = %u bits, auth_bits = %u\n",
-		  param.seq_init, payload_len, master_key_len*8, auth_bits);
+		  param.seq_init, payload_len,
+		  param.master_key_len*8, auth_bits);
 	re_printf("build:         %H\n", sys_build_get, 0);
 	re_printf("compiler:      %s\n", __VERSION__);
 	re_printf("libre:         %s\n", sys_libre_version_get());
@@ -514,22 +522,22 @@ int main(int argc, char *argv[])
 
 	rand_bytes(payload, payload_len);
 
-	if (master_key_len == 16 && auth_bits == 32)
+	if (param.master_key_len == 16 && auth_bits == 32)
 		suite = SRTP_AES_CM_128_HMAC_SHA1_32;
-	else if (master_key_len == 16 && auth_bits == 80)
+	else if (param.master_key_len == 16 && auth_bits == 80)
 		suite = SRTP_AES_CM_128_HMAC_SHA1_80;
-	else if (master_key_len == 32 && auth_bits == 32)
+	else if (param.master_key_len == 32 && auth_bits == 32)
 		suite = SRTP_AES_256_CM_HMAC_SHA1_32;
-	else if (master_key_len == 32 && auth_bits == 80)
+	else if (param.master_key_len == 32 && auth_bits == 80)
 		suite = SRTP_AES_256_CM_HMAC_SHA1_80;
-	else if (master_key_len == 16 && auth_bits == 0)
+	else if (param.master_key_len == 16 && auth_bits == 0)
 		suite = SRTP_AES_128_GCM;
-	else if (master_key_len == 32 && auth_bits == 0)
+	else if (param.master_key_len == 32 && auth_bits == 0)
 		suite = SRTP_AES_256_GCM;
 	else {
 		re_fprintf(stderr, "no matching suite -- invalid parameters"
 			   " (master_key = %u bytes, auth_bits = %u)\n",
-			   master_key_len, auth_bits);
+			   param.master_key_len, auth_bits);
 		err = EINVAL;
 		goto out;
 	}
@@ -553,7 +561,7 @@ int main(int argc, char *argv[])
 
 	t0 = tmr_jiffies_usec();
 #ifdef HAVE_LIBSRTP
-	err = perftest_libsrtp_encode(&mbv_libsrtp, suite);
+	err = perftest_libsrtp_encode(&param, &mbv_libsrtp, suite);
 	if (err) {
 		re_fprintf(stderr, "perftest_libsrtp_encode failed: %m\n",
 			   err);
@@ -561,7 +569,7 @@ int main(int argc, char *argv[])
 	}
 #endif
 	t1 = tmr_jiffies_usec();
-	err = perftest_native_encode(&mbv_native, suite);
+	err = perftest_native_encode(&param, &mbv_native, suite);
 	t2 = tmr_jiffies_usec();
 	if (err) {
 		re_fprintf(stderr, "perftest_native_encode failed: %m\n", err);
@@ -617,7 +625,7 @@ int main(int argc, char *argv[])
 
 	t0 = tmr_jiffies_usec();
 #ifdef HAVE_LIBSRTP
-	err = perftest_libsrtp_decode(&mbv_libsrtp, suite);
+	err = perftest_libsrtp_decode(&param, &mbv_libsrtp, suite);
 	if (err) {
 		re_fprintf(stderr, "perftest_libsrtp_decode failed:"
 			   " %m\n", err);
@@ -625,7 +633,7 @@ int main(int argc, char *argv[])
 	}
 #endif
 	t1 = tmr_jiffies_usec();
-	err = perftest_native_decode(&mbv_native, suite);
+	err = perftest_native_decode(&param, &mbv_native, suite);
 	t2 = tmr_jiffies_usec();
 	if (err) {
 		re_fprintf(stderr, "perftest_native_decode failed: %m\n", err);
