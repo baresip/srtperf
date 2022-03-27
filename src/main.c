@@ -9,9 +9,7 @@
 #include <srtp2/crypto_types.h>
 #endif
 #include <openssl/crypto.h>
-#include <sys/time.h>
 #include <string.h>
-#include <stdlib.h>
 #include <getopt.h>
 #include <math.h>
 #include <re.h>
@@ -70,15 +68,14 @@ static int packets_init(struct packets *mbv, unsigned num,
 			const uint8_t *payload, unsigned payload_len,
 			enum srtp_suite suite)
 {
-	struct rtp_header hdr;
+	struct rtp_header hdr = {
+		.ver  = RTP_VERSION,
+		.ssrc = DUMMY_SSRC
+	};
 	unsigned i;
 	uint16_t seq = seq_init;
 	size_t tag_len = get_taglen(suite);
 	int err = 0;
-
-	memset(&hdr, 0, sizeof(hdr));
-	hdr.ver  = RTP_VERSION;
-	hdr.ssrc = DUMMY_SSRC;
 
 	mbv->mbv = mem_zalloc(num * sizeof(struct mbuf *), NULL);
 	if (!mbv->mbv)
