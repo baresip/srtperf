@@ -423,6 +423,46 @@ static enum srtp_suite resolve_suite(unsigned master_key_len,
 }
 
 
+static int execute_decrypt(const struct param *prm,
+			   struct packets *mbv_libsrtp,
+			   struct packets *mbv_native,
+			   enum srtp_suite suite)
+{
+	uint64_t t0, t1, t2;
+	int64_t delta_libsrtp, delta_native;
+	double percent;
+	int err = 0;
+
+	t0 = tmr_jiffies_usec();
+	err = perftest_libsrtp_decode(prm, mbv_libsrtp, suite);
+	if (err) {
+		re_fprintf(stderr, "perftest_libsrtp_decode failed:"
+			   " %m\n", err);
+		goto out;
+	}
+	t1 = tmr_jiffies_usec();
+	err = perftest_native_decode(prm, mbv_native, suite);
+	t2 = tmr_jiffies_usec();
+	if (err) {
+		re_fprintf(stderr, "perftest_native_decode failed: %m\n", err);
+		goto out;
+	}
+
+	delta_libsrtp = t1 - t0;
+	delta_native  = t2 - t1;
+	percent = 100.0f * (delta_native - delta_libsrtp) / (delta_libsrtp);
+
+	/* show timing */
+	re_printf("libsrtp decrypt %u times:    %lli usec\n",
+		  mbv_libsrtp->num, delta_libsrtp);
+	re_printf("native  decrypt %u times:    %lli usec   (%.1f %%)\n",
+		  mbv_native->num, delta_native, percent);
+
+ out:
+	return err;
+}
+
+
 static int verify_decrypt(const uint8_t *payload, size_t payload_len,
 			  const struct packets *mbv_native)
 {
@@ -486,7 +526,7 @@ int main(int argc, char *argv[])
 	uint8_t *payload = NULL;
 	unsigned i;
 	bool verbose = false;
-	enum srtp_suite suite;
+	enum srtp_suite suite;  /* todo: move to param? */
 	struct param param = {
 		.seq_init = 1,
 		.master_key_len = 16
@@ -674,27 +714,9 @@ int main(int argc, char *argv[])
 
 	re_printf("\n");
 
-	t0 = tmr_jiffies_usec();
-#ifdef HAVE_LIBSRTP
-	err = perftest_libsrtp_decode(&param, &mbv_libsrtp, suite);
-	if (err) {
-		re_fprintf(stderr, "perftest_libsrtp_decode failed:"
-			   " %m\n", err);
+	err = execute_decrypt(&param, &mbv_libsrtp, &mbv_native, suite);
+	if (err)
 		goto out;
-	}
-#endif
-	t1 = tmr_jiffies_usec();
-	err = perftest_native_decode(&param, &mbv_native, suite);
-	t2 = tmr_jiffies_usec();
-	if (err) {
-		re_fprintf(stderr, "perftest_native_decode failed: %m\n", err);
-		goto out;
-	}
-
-	re_printf("libsrtp decrypt %u times:    %d usec\n", num, (int)(t1-t0));
-	re_printf("native  decrypt %u times:    %d usec   (%.1f %%)\n",
-		  num, (int)(t2-t1),
-		  100.0 * ((int)(t2-t1) - (int)(t1-t0)) / (t1-t0) );
 
 	err = verify_decrypt(payload, payload_len, &mbv_native);
 	if (err)
