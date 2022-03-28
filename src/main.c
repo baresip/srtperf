@@ -423,6 +423,47 @@ static enum srtp_suite resolve_suite(unsigned master_key_len,
 }
 
 
+static int verify_decrypt(const uint8_t *payload, size_t payload_len,
+			  const struct packets *mbv_native)
+{
+	int err = 0;
+
+	/* verify all decrypted RTP-packets */
+	for (size_t i=0; i<mbv_native->num; i++) {
+
+		size_t hdr_len = mbv_native->rtp_hdr_len;
+		size_t rtp_len = mbv_native->rtp_packet_len;
+
+		if (mbv_native->mbv[i]->end != rtp_len) {
+			err = EBADMSG;
+			DEBUG_WARNING("RTP packet %u length mismatch"
+				      " (expect = %u, actual = %u)\n", i,
+				      rtp_len, mbv_native->mbv[i]->end);
+			break;
+		}
+		if (0 != memcmp(payload,
+				&mbv_native->mbv[i]->buf[hdr_len],
+				payload_len)) {
+			err = EBADMSG;
+			DEBUG_WARNING("RTP packet %u content mismatch\n", i);
+
+			hexdump_dual(stderr,
+				     payload,
+				     payload_len,
+				     &mbv_native->mbv[i]->buf[hdr_len],
+				     mbv_native->mbv[i]->end - hdr_len);
+			break;
+		}
+
+	}
+	if (!err)
+		re_printf("verified decrypt %u RTP-packets ok\n",
+			  mbv_native->num);
+
+	return err;
+}
+
+
 static void usage(void)
 {
 	(void)re_fprintf(stderr,
@@ -655,39 +696,9 @@ int main(int argc, char *argv[])
 		  num, (int)(t2-t1),
 		  100.0 * ((int)(t2-t1) - (int)(t1-t0)) / (t1-t0) );
 
-	/* verify all decrypted RTP-packets */
-	for (i=0; i<num; i++) {
-
-		size_t hdr_len = mbv_native.rtp_hdr_len;
-		size_t rtp_len = mbv_native.rtp_packet_len;
-
-		if (mbv_native.mbv[i]->end != rtp_len) {
-			err = EBADMSG;
-			DEBUG_WARNING("RTP packet %u length mismatch"
-				      " (expect = %u, actual = %u)\n", i,
-				      rtp_len, mbv_native.mbv[i]->end);
-			break;
-		}
-		if (0 != memcmp(payload,
-				&mbv_native.mbv[i]->buf[hdr_len],
-				payload_len)) {
-			err = EBADMSG;
-			DEBUG_WARNING("RTP packet %u content mismatch\n", i);
-
-			hexdump_dual(stderr,
-					  payload,
-					  payload_len,
-					  &mbv_native.mbv[i]->buf[hdr_len],
-					  mbv_native.mbv[i]->end - hdr_len);
-			break;
-		}
-
-		if (verbose) {
-			re_printf("RTP packet OK\n");
-		}
-	}
-	if (!err)
-		re_printf("verified %u RTP-packets ok\n", i);
+	err = verify_decrypt(payload, payload_len, &mbv_native);
+	if (err)
+		goto out;
 
  out:
 	mbv_reset(&mbv_native);
