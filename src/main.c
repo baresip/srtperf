@@ -423,6 +423,45 @@ static enum srtp_suite resolve_suite(unsigned master_key_len,
 }
 
 
+static int verify_encrypt(const struct packets *mbv_libsrtp,
+			  const struct packets *mbv_native)
+{
+	int err = 0;
+
+	/* compare all SRTP packets */
+	for (size_t i=0; i<mbv_libsrtp->num; i++) {
+
+		if (mbv_libsrtp->mbv[i]->end !=
+		    mbv_native->mbv[i]->end) {
+			err = EBADMSG;
+			DEBUG_WARNING("SRTP packet %u length mismatch"
+				      " (libsrtp = %u, native = %u)\n", i,
+				      mbv_libsrtp->mbv[i]->end,
+				      mbv_native->mbv[i]->end);
+			break;
+		}
+		if (0 != memcmp(mbv_libsrtp->mbv[i]->buf,
+				mbv_native->mbv[i]->buf,
+				mbv_libsrtp->mbv[i]->end)) {
+			err = EBADMSG;
+			DEBUG_WARNING("SRTP packet %u content mismatch\n", i);
+
+			hexdump_dual(stderr,
+					  mbv_libsrtp->mbv[i]->buf,
+					  mbv_libsrtp->mbv[i]->end,
+					  mbv_native->mbv[i]->buf,
+					  mbv_native->mbv[i]->end);
+			break;
+		}
+	}
+	if (!err)
+		re_printf("verified encrypt %u SRTP-packets ok\n",
+			  mbv_libsrtp->num);
+
+	return err;
+}
+
+
 static int execute_decrypt(const struct param *prm,
 			   struct packets *mbv_libsrtp,
 			   struct packets *mbv_native,
@@ -524,7 +563,6 @@ int main(int argc, char *argv[])
 	uint64_t t0, t1, t2;
 	struct packets mbv_libsrtp, mbv_native;
 	uint8_t *payload = NULL;
-	unsigned i;
 	bool verbose = false;
 	enum srtp_suite suite;  /* todo: move to param? */
 	struct param param = {
@@ -677,40 +715,9 @@ int main(int argc, char *argv[])
 	re_printf("native packets per. second:    %f\n",
 		  1000000LL * num / (double)(t2-t1));
 
-#ifdef HAVE_LIBSRTP
-	/* compare all SRTP packets */
-	for (i=0; i<num; i++) {
-
-		if (mbv_libsrtp.mbv[i]->end !=
-		    mbv_native.mbv[i]->end) {
-			err = EBADMSG;
-			DEBUG_WARNING("SRTP packet %u length mismatch"
-				      " (libsrtp = %u, native = %u)\n", i,
-				      mbv_libsrtp.mbv[i]->end,
-				      mbv_native.mbv[i]->end);
-			break;
-		}
-		if (0 != memcmp(mbv_libsrtp.mbv[i]->buf,
-				mbv_native.mbv[i]->buf,
-				mbv_libsrtp.mbv[i]->end)) {
-			err = EBADMSG;
-			DEBUG_WARNING("SRTP packet %u content mismatch\n", i);
-
-			hexdump_dual(stderr,
-					  mbv_libsrtp.mbv[i]->buf,
-					  mbv_libsrtp.mbv[i]->end,
-					  mbv_native.mbv[i]->buf,
-					  mbv_native.mbv[i]->end);
-			break;
-		}
-
-		if (verbose) {
-			re_printf("SRTP packet OK\n");
-		}
-	}
-	if (!err)
-		re_printf("verified %u SRTP-packets ok\n", i);
-#endif
+	err = verify_encrypt(&mbv_libsrtp, &mbv_native);
+	if (err)
+		goto out;
 
 	re_printf("\n");
 
