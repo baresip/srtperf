@@ -423,6 +423,45 @@ static enum srtp_suite resolve_suite(unsigned master_key_len,
 }
 
 
+static int execute_encrypt(const struct param *prm,
+			   struct packets *mbv_libsrtp,
+			   struct packets *mbv_native,
+			   enum srtp_suite suite)
+{
+	uint64_t t0, t1, t2;
+	int err = 0;
+
+	t0 = tmr_jiffies_usec();
+	err = perftest_libsrtp_encode(prm, mbv_libsrtp, suite);
+	if (err) {
+		re_fprintf(stderr, "perftest_libsrtp_encode failed: %m\n",
+			   err);
+		goto out;
+	}
+	t1 = tmr_jiffies_usec();
+	err = perftest_native_encode(prm, mbv_native, suite);
+	t2 = tmr_jiffies_usec();
+	if (err) {
+		re_fprintf(stderr, "perftest_native_encode failed: %m\n", err);
+		goto out;
+	}
+
+	re_printf("libsrtp encrypt %u times:    %d usec\n",
+		  mbv_libsrtp->num, (int)(t1-t0));
+	re_printf("native  encrypt %u times:    %d usec   (%.1f %%)\n",
+		  mbv_native->num, (int)(t2-t1),
+		  100.0 * ((int)(t2-t1) - (int)(t1-t0)) / (t1-t0) );
+
+	re_printf("libsrtp packets per. second:   %.1f\n",
+		  1000000LL * mbv_libsrtp->num / (double)(t1-t0));
+	re_printf("native packets per. second:    %.1f\n",
+		  1000000LL * mbv_native->num / (double)(t2-t1));
+
+ out:
+	return err;
+}
+
+
 static int verify_encrypt(const struct packets *mbv_libsrtp,
 			  const struct packets *mbv_native)
 {
@@ -560,7 +599,6 @@ static void usage(void)
 int main(int argc, char *argv[])
 {
 	unsigned auth_bits = 80, payload_len = 160, num = 100;
-	uint64_t t0, t1, t2;
 	struct packets mbv_libsrtp, mbv_native;
 	uint8_t *payload = NULL;
 	bool verbose = false;
@@ -688,32 +726,9 @@ int main(int argc, char *argv[])
 	if (verbose)
 		re_printf("starting encryption tests..\n");
 
-	t0 = tmr_jiffies_usec();
-#ifdef HAVE_LIBSRTP
-	err = perftest_libsrtp_encode(&param, &mbv_libsrtp, suite);
-	if (err) {
-		re_fprintf(stderr, "perftest_libsrtp_encode failed: %m\n",
-			   err);
+	err = execute_encrypt(&param, &mbv_libsrtp, &mbv_native, suite);
+	if (err)
 		goto out;
-	}
-#endif
-	t1 = tmr_jiffies_usec();
-	err = perftest_native_encode(&param, &mbv_native, suite);
-	t2 = tmr_jiffies_usec();
-	if (err) {
-		re_fprintf(stderr, "perftest_native_encode failed: %m\n", err);
-		goto out;
-	}
-
-	re_printf("libsrtp encrypt %u times:    %d usec\n", num, (int)(t1-t0));
-	re_printf("native  encrypt %u times:    %d usec   (%.1f %%)\n",
-		  num, (int)(t2-t1),
-		  100.0 * ((int)(t2-t1) - (int)(t1-t0)) / (t1-t0) );
-
-	re_printf("libsrtp packets per. second:   %f\n",
-		  1000000LL * num / (double)(t1-t0));
-	re_printf("native packets per. second:    %f\n",
-		  1000000LL * num / (double)(t2-t1));
 
 	err = verify_encrypt(&mbv_libsrtp, &mbv_native);
 	if (err)
