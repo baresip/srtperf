@@ -39,6 +39,10 @@ struct packets {
 	size_t srtp_packet_len;
 };
 
+struct timing {
+	double pps;  /* Packets per second */
+};
+
 static const uint32_t DUMMY_SSRC = 0x01020304;
 
 
@@ -426,7 +430,9 @@ static enum srtp_suite resolve_suite(unsigned master_key_len,
 static int execute_encrypt(const struct param *prm,
 			   struct packets *mbv_libsrtp,
 			   struct packets *mbv_native,
-			   enum srtp_suite suite)
+			   enum srtp_suite suite,
+			   struct timing *timing_srtp,
+			   struct timing *timing_native)
 {
 	uint64_t t0, t1, t2;
 	int err = 0;
@@ -452,10 +458,16 @@ static int execute_encrypt(const struct param *prm,
 		  mbv_native->num, (int)(t2-t1),
 		  100.0 * ((int)(t2-t1) - (int)(t1-t0)) / (t1-t0) );
 
-	re_printf("libsrtp packets per. second:   %.1f\n",
-		  1000000LL * mbv_libsrtp->num / (double)(t1-t0));
-	re_printf("native packets per. second:    %.1f\n",
-		  1000000LL * mbv_native->num / (double)(t2-t1));
+	double pps_srtp = 1000000LL * mbv_libsrtp->num / (double)(t1-t0);
+	double pps_native = 1000000LL * mbv_native->num / (double)(t2-t1);
+
+	re_printf("libsrtp packets per. second:   %.1f\n", pps_srtp);
+	re_printf("native packets per. second:    %.1f\n", pps_native);
+
+	if (timing_srtp)
+		timing_srtp->pps = pps_srtp;
+	if (timing_native)
+		timing_native->pps = pps_native;
 
  out:
 	return err;
@@ -581,6 +593,77 @@ static int verify_decrypt(const uint8_t *payload, size_t payload_len,
 	return err;
 }
 
+#define COUNT 7
+static const size_t payloads[COUNT] = {
+	200, 400, 600, 800, 1000, 1200, 1400
+};
+
+
+static int plot_payloads(const struct param *prm, size_t num,
+			 enum srtp_suite suite)
+{
+	struct packets mbv_libsrtp, mbv_native;
+
+	uint8_t *payload;
+	int err = 0;
+
+	struct timing timing_srtp[COUNT];
+	struct timing timing_native[COUNT];
+
+	memset(&mbv_libsrtp, 0, sizeof(mbv_libsrtp));
+	memset(&mbv_native, 0, sizeof(mbv_native));
+
+	for (size_t i=0; i < COUNT; i++) {
+
+		size_t payload_len = payloads[i];
+
+		payload = mem_alloc(payload_len, NULL);
+
+		rand_bytes(payload, payload_len);
+
+		err |= packets_init(prm, &mbv_libsrtp, num,
+				    payload, payload_len,
+				    suite);
+		err |= packets_init(prm, &mbv_native, num,
+				    payload, payload_len,
+				    suite);
+		if (err)
+			goto out;
+
+		/*
+		 * Start timing now
+		 */
+
+		err = execute_encrypt(prm, &mbv_libsrtp, &mbv_native, suite,
+				      &timing_srtp[i], &timing_native[i]);
+		if (err)
+			goto out;
+
+		payload = mem_deref(payload);
+
+		mbv_reset(&mbv_native);
+		mbv_reset(&mbv_libsrtp);
+	}
+
+	/* Show */
+
+	re_printf("\n");
+	re_printf("Payload size, %s/libsrtp (PPS), %s/libre (PPS)\n",
+		  srtp_suite_name(suite), srtp_suite_name(suite));
+
+	for (size_t i=0; i<COUNT; i++) {
+
+		re_printf("%zu, %.1f, %.1f\n", payloads[i],
+			  timing_srtp[i].pps,
+			  timing_native[i].pps);
+	}
+
+ out:
+	mem_deref(payload);
+
+	return err;
+}
+
 
 static void usage(void)
 {
@@ -607,6 +690,7 @@ int main(int argc, char *argv[])
 		.seq_init = 1,
 		.master_key_len = 16
 	};
+	bool plot_graph = false;
 	int err = 0;
 
 	memset(&mbv_libsrtp, 0, sizeof(mbv_libsrtp));
@@ -614,7 +698,7 @@ int main(int argc, char *argv[])
 
 	for (;;) {
 
-		const int c = getopt(argc, argv, "a:e:p:n:hv");
+		const int c = getopt(argc, argv, "a:e:p:n:hvg");
 		if (0 > c)
 			break;
 
@@ -626,6 +710,10 @@ int main(int argc, char *argv[])
 
 		case 'e':
 			param.master_key_len = atoi(optarg)/8;
+			break;
+
+		case 'g':
+			plot_graph = true;
 			break;
 
 		case 'p':
@@ -696,10 +784,6 @@ int main(int argc, char *argv[])
 	}
 #endif
 
-	payload = mem_alloc(payload_len, NULL);
-
-	rand_bytes(payload, payload_len);
-
 	suite = resolve_suite(param.master_key_len, auth_bits);
 	if ((int)suite == -1) {
 		re_fprintf(stderr, "no matching suite -- invalid parameters"
@@ -710,6 +794,16 @@ int main(int argc, char *argv[])
 	}
 
 	re_printf("suite:         %s\n", srtp_suite_name(suite));
+
+	if (plot_graph) {
+		err = plot_payloads(&param, num, suite);
+		goto out;
+	}
+
+	payload = mem_alloc(payload_len, NULL);
+
+	rand_bytes(payload, payload_len);
+
 
 	if (verbose)
 		re_printf("creating %u packets\n", num);
@@ -726,7 +820,8 @@ int main(int argc, char *argv[])
 	if (verbose)
 		re_printf("starting encryption tests..\n");
 
-	err = execute_encrypt(&param, &mbv_libsrtp, &mbv_native, suite);
+	err = execute_encrypt(&param, &mbv_libsrtp, &mbv_native, suite,
+			      0,0);
 	if (err)
 		goto out;
 
