@@ -98,7 +98,7 @@ static int packets_init(const struct param *prm,
 
 	for (unsigned i=0; i<num; i++) {
 
-		size_t len = mbv->rtp_packet_len + 12;
+		size_t len = mbv->rtp_packet_len + 16;  /* max trailer */
 
 		hdr.seq = seq++;
 
