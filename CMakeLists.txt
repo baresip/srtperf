@@ -13,6 +13,8 @@ cmake_minimum_required(VERSION 3.7)
 
 project(srtperf)
 
+set(CMAKE_BUILD_TYPE RelWithDebInfo)
+
 
 ##############################################################################
 #
