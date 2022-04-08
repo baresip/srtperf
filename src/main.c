@@ -593,10 +593,11 @@ static int verify_decrypt(const uint8_t *payload, size_t payload_len,
 	return err;
 }
 
-#define COUNT 7
-static const size_t payloads[COUNT] = {
-	200, 400, 600, 800, 1000, 1200, 1400
-};
+#define COUNT 15
+static const size_t payload_min = 100;
+static const size_t payload_max = 1500;
+static const size_t payload_interval = 100;
+static size_t payloads[COUNT];
 
 
 static int plot_payloads(const struct param *prm, size_t num,
@@ -613,9 +614,11 @@ static int plot_payloads(const struct param *prm, size_t num,
 	memset(&mbv_libsrtp, 0, sizeof(mbv_libsrtp));
 	memset(&mbv_native, 0, sizeof(mbv_native));
 
+	size_t payload_len = payload_min;
+
 	for (size_t i=0; i < COUNT; i++) {
 
-		size_t payload_len = payloads[i];
+		payloads[i] = payload_len;
 
 		payload = mem_alloc(payload_len, NULL);
 
@@ -643,6 +646,10 @@ static int plot_payloads(const struct param *prm, size_t num,
 
 		mbv_reset(&mbv_native);
 		mbv_reset(&mbv_libsrtp);
+
+		payload_len += payload_interval;
+		if (payload_len > payload_max)
+			break;
 	}
 
 	/* Show */
@@ -676,6 +683,7 @@ static void usage(void)
 	(void)re_fprintf(stderr, "\t-p <bytes>  RTP Payload size in bytes\n");
 	(void)re_fprintf(stderr, "\t-h          Show summary of options\n");
 	(void)re_fprintf(stderr, "\t-v          Verbose output\n");
+	(void)re_fprintf(stderr, "\t-g          Plot a graph with payload sizes\n");
 }
 
 
