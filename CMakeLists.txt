@@ -38,7 +38,6 @@ include_directories(
   src
   /usr/local/include
   /usr/local/include/re
-  /usr/local/include/rem
   /opt/local/include
 )
 
@@ -59,4 +58,4 @@ add_definitions(
 #
 
 add_executable(${PROJECT_NAME} src/main.c src/hexdump.c)
-target_link_libraries(${PROJECT_NAME} -lrem -lre -lsrtp2 -lcrypto -lz -lpthread)
+target_link_libraries(${PROJECT_NAME} -lre -lsrtp2 -lcrypto -lz -lpthread)
