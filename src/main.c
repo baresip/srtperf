@@ -4,10 +4,8 @@
  * Copyright (C) 2010 - 2022 Alfred E. Heggestad
  */
 
-#ifdef HAVE_LIBSRTP
 #include <srtp2/srtp.h>
 #include <srtp2/crypto_types.h>
-#endif
 #include <openssl/crypto.h>
 #include <string.h>
 #include <getopt.h>
@@ -156,9 +154,6 @@ static bool suite_is_gcm(enum srtp_suite suite)
 	default: return false;
 	}
 }
-
-
-#ifdef HAVE_LIBSRTP
 
 
 static uint32_t get_libsrtp_cipher(enum srtp_suite suite)
@@ -319,7 +314,6 @@ static int perftest_libsrtp_decode(const struct param *prm,
 
 	return err;
 }
-#endif
 
 
 static int perftest_native_encode(const struct param *prm,
@@ -683,7 +677,8 @@ static void usage(void)
 	(void)re_fprintf(stderr, "\t-p <bytes>  RTP Payload size in bytes\n");
 	(void)re_fprintf(stderr, "\t-h          Show summary of options\n");
 	(void)re_fprintf(stderr, "\t-v          Verbose output\n");
-	(void)re_fprintf(stderr, "\t-g          Plot a graph with payload sizes\n");
+	(void)re_fprintf(stderr, "\t-g          Plot a graph with payload"
+			" sizes\n");
 }
 
 
@@ -766,16 +761,10 @@ int main(int argc, char *argv[])
 		  SSLeay_version(SSLEAY_CFLAGS));
 #endif
 
-#ifdef HAVE_LIBSRTP
-	re_printf("HAVE_LIBSRTP:  yes\n");
 	re_printf("libsrtp:       %s\n", srtp_get_version_string());
-#else
-	re_printf("HAVE_LIBSRTP:  no\n");
-#endif
 
 	re_printf("\n");
 
-#ifdef HAVE_LIBSRTP
 	{
 		srtp_err_status_t e;
 		if (verbose)
@@ -790,7 +779,6 @@ int main(int argc, char *argv[])
 		if (verbose)
 			re_printf("libsrtp initialized OK\n");
 	}
-#endif
 
 	suite = resolve_suite(param.master_key_len, auth_bits);
 	if ((int)suite == -1) {
