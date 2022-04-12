@@ -47,7 +47,6 @@ link_directories(
 )
 
 add_definitions(
-  -DHAVE_INET6
   -DUSE_OPENSSL
   )
 
